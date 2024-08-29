@@ -7,9 +7,18 @@
   <title>Chrome Extension Popup</title>
 </head>
 
-<body>
-  <h1>Hello, World!</h1>
-  <button id="alertButton">Click me!</button>
+<body style="min-width: 200px; max-height: 400px; overflow: scroll; padding-bottom: 10px;">
+  <h1 style="text-align: center;">Hello Hiniu</h1>
+
+  <h4>Upload *.tsv file</h4>
+  <input type="file" id="tsvFile" accept=".tsv">
+
+  <hr style="margin-top: 20px; margin-bottom: 20px;">
+  <div id="uploadPack"></div>
+  <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+  <button id="startBtn" style="width: 100%;font-weight: bolder; font-size: 20px;">Start</button>
+  <div id="hihi"></div>
   <script src="popup.js"></script>
   <script src="jquery.min.js"></script>
 </body>
