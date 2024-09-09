@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
+  let csv = null;
   document
     .getElementById("tsvFile")
     .addEventListener("change", function (event) {
@@ -8,6 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       let reader = new FileReader();
       reader.onload = function (e) {
+        csv = e.target.result;
         let [headers, ...rows] = e.target.result
           .trim()
           .split("\n")
@@ -30,10 +32,10 @@ document.addEventListener("DOMContentLoaded", function () {
             const input = document.createElement("input");
             switch (i) {
               case 0:
-                input.setAttribute("name", "urlTaiLieuKyThuat");
+                input.setAttribute("name", "fileTaiLieuKyThuat");
                 break;
               case 1:
-                input.setAttribute("name", "urlTaiLieuHuongDan");
+                input.setAttribute("name", "fileTaiLieuHuongDan");
                 break;
               case 2:
                 input.setAttribute("name", "fileTaiLieuHuongDanVn");
@@ -47,46 +49,51 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           uploadPack.appendChild(group);
         });
-
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          chrome.scripting.executeScript({
-            target: { tabId: tabs[0].id },
-            func: test,
-            args: [dataSource],
-          });
-        });
       };
       reader.readAsText(file);
     });
 
-  document.getElementById("startBtn").addEventListener("click", () => {
+  document.getElementById("startBtn").addEventListener("click", async () => {
     const groupFile = document.getElementsByClassName("group-upload");
+    var fileGroups = {};
 
-    const fileArray = Array.from(groupFile).map((group) => {
-      const fileObject = {};
+    Array.from(groupFile).map((group) => {
+      let fileObject = {};
       Array.from(group.getElementsByTagName("input")).forEach((input) => {
         if (input.type === "file" && input.files.length) {
-          fileObject[input.name] = input.files;
+          const file = input.files[0];
+          let reader = new FileReader();
+          reader.onload = function (e) {
+            let bufferData = new Uint8Array(reader.result);
+            fileObject[input.name] = {
+              buffer: bufferData,
+              name: file.name,
+              type: file.type,
+            };
+          };
+          reader.readAsArrayBuffer(file);
         }
       });
-      return fileObject;
+      fileGroups[group.getAttribute("target")] = fileObject;
     });
+
+    console.log(fileGroups);
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       chrome.scripting.executeScript({
         target: { tabId: tabs[0].id },
-        func: test,
-        args: [fileArray],
+        func: changeContent,
+        args: [csv, fileGroups],
       });
     });
   });
 });
 
-function test(data) {
-  console.log(data);
-}
+function start(csv) {}
 
-function changeContent(csv) {
+function changeContent(csv, fileGroups) {
+  console.log(fileGroups);
+
   const [headers, ...rows] = csv
     .trim()
     .split("\n")
@@ -135,23 +142,58 @@ function changeContent(csv) {
   let _factoryCountry = (index) => {
     return _form().find(`[id$='_dsCoSoSx.nuocsx_${index}']`);
   };
+  let _fileTaiLieuKyThuat = () => {
+    return _form().find("input[id$='_fileTaiLieuKyThuat']:first");
+  };
+  let _fileTaiLieuHuongDan = () => {
+    return _form().find("input[id$='_fileTaiLieuHuongDan']:first");
+  };
+  let _fileTaiLieuHuongDanVn = () => {
+    return _form().find("input[id$='_fileTaiLieuHuongDanVn']:first");
+  };
+  let _fileMauNhan = () => {
+    return _form().find("input[id$='_fileMauNhan']:first");
+  };
   let _isLoaded = () => {
     return !_form().find(".loadingmask-message:visible").length;
+  };
+  let _isDone = () => {
+    return !$("#addChungLoaiMaPopup").hasClass("modal-focused");
   };
 
   async function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async function waitUntil(check, interval = 1000) {
-    await sleep(interval);
-    do {
-      await new Promise((resolve) => setTimeout(resolve, interval));
-    } while (!(await check()));
-  }
-
   function fillData(item) {
-    console.log(item);
+    // let bufferData = fileGroups[item.filePatch];
+
+    // for (var key in bufferData) {
+    //   if (!bufferData.hasOwnProperty(key)) continue;
+    //   let targetInputFile = null;
+    //   switch (key) {
+    //     case "fileTaiLieuKyThuat":
+    //       targetInputFile = _fileTaiLieuKyThuat();
+    //       break;
+    //     case "fileTaiLieuHuongDan":
+    //       targetInputFile = _fileTaiLieuHuongDan();
+    //       break;
+    //     case "fileTaiLieuHuongDanVn":
+    //       targetInputFile = _fileTaiLieuHuongDanVn();
+    //       break;
+    //     case "fileMauNhan":
+    //       targetInputFile = _fileMauNhan();
+    //       break;
+    //   }
+
+    //   const { buffer, name, type } = bufferData;
+    //   const file = new File([buffer], name, { type: type });
+    //   const dataTransfer = new DataTransfer();
+    //   dataTransfer.items.add(file);
+
+    //   targetInputFile[0].files = dataTransfer.files;
+    //   targetInputFile.trigger("change");
+    // }
 
     _deviceName().val(item.deviceName);
     _saleName().val(item.saleName);
@@ -170,7 +212,6 @@ function changeContent(csv) {
           return acc;
         }, {});
     }
-    console.log(listCountries);
 
     _factoryName(0).val(item.factoryName);
     _factoryAddress(0).val(item.factoryAddress);
@@ -178,17 +219,48 @@ function changeContent(csv) {
   }
 
   const startCode = async (f) => {
-    _addMoreBtn.click();
+    // _addMoreBtn.click();
+    // await waitUntil(_isLoaded);
+    // fillData(dataSource[0]);
+    // await waitUntil(_isDone);
+    // return true;
 
-    await waitUntil(_isLoaded);
-
-    fillData(dataSource[0]);
-    return true;
-    dataSource.forEach(async (item) => {
+    for (const item of dataSource) {
       _addMoreBtn.click();
-      await waitUntil(_isLoaded);
+
+      await sleep(1000);
+
+      while (!_isLoaded()) {
+        await sleep(1000);
+      }
+
       fillData(item);
-    });
+
+      // let files = [
+      //   _fileTaiLieuKyThuat().first(),
+      //   _fileTaiLieuHuongDan().first(),
+      //   _fileTaiLieuHuongDanVn().first(),
+      //   _fileMauNhan().first(),
+      // ];
+
+      console.log("3s");
+
+      await sleep(3000);
+      let a = _fileTaiLieuKyThuat().get(0);
+      a.click();
+
+      console.log(a);
+
+      // while (_fileTaiLieuKyThuat().files.length == 0) {
+      //   await sleep(1000);
+      // }
+      await sleep(1000);
+
+      while (!_isDone()) {
+        await sleep(1000);
+      }
+      await sleep(1000);
+    }
   };
 
   startCode();
