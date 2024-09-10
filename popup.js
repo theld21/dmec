@@ -15,253 +15,257 @@ document.addEventListener("DOMContentLoaded", function () {
           .split("\n")
           .map((row) => row.split("\t"));
 
-        const uploadPack = document.querySelector("#uploadPack");
-        let dataSource = rows.map((row) => row[headers.length - 1].trim());
-        dataSource = [...new Set(dataSource)];
+        let fileGroups = rows.map((row) => row[headers.length - 1].trim());
+        fileGroups = [...new Set(fileGroups)];
 
-        dataSource.forEach((value) => {
-          const group = document.createElement("div");
-          group.classList.add("group-upload");
-          group.setAttribute("target", value);
-
-          const title = document.createElement("h4");
-          title.textContent = `Nhóm file ${value}`;
-          group.appendChild(title);
-
-          for (let i = 0; i < 4; i++) {
-            const input = document.createElement("input");
-            switch (i) {
-              case 0:
-                input.setAttribute("name", "fileTaiLieuKyThuat");
-                break;
-              case 1:
-                input.setAttribute("name", "fileTaiLieuHuongDan");
-                break;
-              case 2:
-                input.setAttribute("name", "fileTaiLieuHuongDanVn");
-                break;
-              case 3:
-                input.setAttribute("name", "fileMauNhan");
-                break;
-            }
-            input.type = "file";
-            group.appendChild(input);
-          }
-          uploadPack.appendChild(group);
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: startUpload,
+            args: [csv, fileGroups],
+          });
         });
       };
       reader.readAsText(file);
     });
-
-  document.getElementById("startBtn").addEventListener("click", async () => {
-    const groupFile = document.getElementsByClassName("group-upload");
-    var fileGroups = {};
-
-    Array.from(groupFile).map((group) => {
-      let fileObject = {};
-      Array.from(group.getElementsByTagName("input")).forEach((input) => {
-        if (input.type === "file" && input.files.length) {
-          const file = input.files[0];
-          let reader = new FileReader();
-          reader.onload = function (e) {
-            let bufferData = new Uint8Array(reader.result);
-            fileObject[input.name] = {
-              buffer: bufferData,
-              name: file.name,
-              type: file.type,
-            };
-          };
-          reader.readAsArrayBuffer(file);
-        }
-      });
-      fileGroups[group.getAttribute("target")] = fileObject;
-    });
-
-    console.log(fileGroups);
-
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.scripting.executeScript({
-        target: { tabId: tabs[0].id },
-        func: changeContent,
-        args: [csv, fileGroups],
-      });
-    });
-  });
 });
 
-function start(csv) {}
-
-function changeContent(csv, fileGroups) {
-  console.log(fileGroups);
-
-  const [headers, ...rows] = csv
-    .trim()
-    .split("\n")
-    .map((row) => row.split("\t"));
-
-  const dataSource = rows.map((row) =>
-    Object.fromEntries(
-      row.map((value, i) => [headers[i]?.trim(), value?.trim()])
-    )
+function startUpload(csv, fileGroups) {
+  let popup = $(
+    "<div><h1>Hello Hyniu</h1><small>v1.1<small><div id='upload_area'></div></div>"
   );
+  popup.css({
+    position: "fixed",
+    top: "0",
+    right: "0",
+    width: "240px",
+    padding: "10px",
+    height: "500px",
+    overflow: "auto",
+    "background-color": "#fff",
+    "box-shadow": "0 4px 8px rgba(0, 0, 0, 0.5)",
+    padding: "20px",
+    "box-sizing": "border-box",
+    "z-index": "999999",
+  });
 
-  var listCountries = [];
-  let _addMoreBtn = $(
-    'input[type=button][value="Thêm chủng loại/mã sản phẩm"]'
-  );
-  let _form = () => {
-    return $("#addChungLoaiMaPopup_iframe_").contents();
-  };
-  let _deviceName = () => {
-    return _form().find("[id$='_tenThietBi']");
-  };
-  let _saleName = () => {
-    return _form().find("[id$='_tenThuongMai']");
-  };
-  let _quality = () => {
-    return _form().find("[id$='_tieuChuanApDung']");
-  };
-  let _type = () => {
-    return _form().find("[id$='_chungLoaiTB']");
-  };
-  let _pack = () => {
-    return _form().find("[id$='_quyCachDongGoi']");
-  };
-  let _code = () => {
-    return _form().find("[id$='_maTB']");
-  };
-  let _addFactoryBtn = () => {
-    return _form().find('input[type=button][value="Thêm cơ sở sản xuất"]');
-  };
-  let _factoryName = (index) => {
-    return _form().find(`[id$='_dsCoSoSx.ten_${index}']`);
-  };
-  let _factoryAddress = (index) => {
-    return _form().find(`[id$='_dsCoSoSx.diachi_${index}']`);
-  };
-  let _factoryCountry = (index) => {
-    return _form().find(`[id$='_dsCoSoSx.nuocsx_${index}']`);
-  };
-  let _fileTaiLieuKyThuat = () => {
-    return _form().find("input[id$='_fileTaiLieuKyThuat']:first");
-  };
-  let _fileTaiLieuHuongDan = () => {
-    return _form().find("input[id$='_fileTaiLieuHuongDan']:first");
-  };
-  let _fileTaiLieuHuongDanVn = () => {
-    return _form().find("input[id$='_fileTaiLieuHuongDanVn']:first");
-  };
-  let _fileMauNhan = () => {
-    return _form().find("input[id$='_fileMauNhan']:first");
-  };
-  let _isLoaded = () => {
-    return !_form().find(".loadingmask-message:visible").length;
-  };
-  let _isDone = () => {
-    return !$("#addChungLoaiMaPopup").hasClass("modal-focused");
-  };
+  $("body").prepend(popup);
 
-  async function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
+  fileGroups.forEach((value) => {
+    const group = document.createElement("div");
+    group.classList.add("group-upload");
+    group.setAttribute("target", value);
 
-  function fillData(item) {
-    // let bufferData = fileGroups[item.filePatch];
+    const title = document.createElement("h4");
+    title.textContent = `Nhóm file ${value}`;
+    group.appendChild(title);
 
-    // for (var key in bufferData) {
-    //   if (!bufferData.hasOwnProperty(key)) continue;
-    //   let targetInputFile = null;
-    //   switch (key) {
-    //     case "fileTaiLieuKyThuat":
-    //       targetInputFile = _fileTaiLieuKyThuat();
-    //       break;
-    //     case "fileTaiLieuHuongDan":
-    //       targetInputFile = _fileTaiLieuHuongDan();
-    //       break;
-    //     case "fileTaiLieuHuongDanVn":
-    //       targetInputFile = _fileTaiLieuHuongDanVn();
-    //       break;
-    //     case "fileMauNhan":
-    //       targetInputFile = _fileMauNhan();
-    //       break;
-    //   }
+    for (let i = 0; i < 4; i++) {
+      const input = document.createElement("input");
+      switch (i) {
+        case 0:
+          input.setAttribute("name", "fileTaiLieuKyThuat");
+          break;
+        case 1:
+          input.setAttribute("name", "fileTaiLieuHuongDan");
+          break;
+        case 2:
+          input.setAttribute("name", "fileTaiLieuHuongDanVn");
+          break;
+        case 3:
+          input.setAttribute("name", "fileMauNhan");
+          break;
+      }
+      input.type = "file";
+      group.appendChild(input);
+    }
+    $("#upload_area").append(group);
+  });
 
-    //   const { buffer, name, type } = bufferData;
-    //   const file = new File([buffer], name, { type: type });
-    //   const dataTransfer = new DataTransfer();
-    //   dataTransfer.items.add(file);
+  let startBtn = $("<button id='startToolBtn'>Start</button>");
+  $("#upload_area").append(startBtn);
 
-    //   targetInputFile[0].files = dataTransfer.files;
-    //   targetInputFile.trigger("change");
-    // }
+  startBtn.on("click", function () {
+    changeContent(csv);
+  });
 
-    _deviceName().val(item.deviceName);
-    _saleName().val(item.saleName);
-    _quality().val(item.quality);
-    _type().val(item.type);
-    _pack().val(item.pack);
-    _code().val(item.code);
-    _addFactoryBtn().click();
+  function changeContent(csv) {
+    const [headers, ...rows] = csv
+      .trim()
+      .split("\n")
+      .map((row) => row.split("\t"));
 
-    if (!listCountries.length) {
-      listCountries = _form()
-        .find(`[id$='_dsCoSoSx.nuocsx_0'] option`)
-        .toArray()
-        .reduce((acc, el) => {
-          acc[$(el).text().trim()] = $(el).val();
-          return acc;
-        }, {});
+    const dataSource = rows.map((row) =>
+      Object.fromEntries(
+        row.map((value, i) => [headers[i]?.trim(), value?.trim()])
+      )
+    );
+
+    var listCountries = [];
+    let _addMoreBtn = $(
+      'input[type=button][value="Thêm chủng loại/mã sản phẩm"]'
+    );
+    let _form = () => {
+      return $("#addChungLoaiMaPopup_iframe_").contents();
+    };
+    let _deviceName = () => {
+      return _form().find("[id$='_tenThietBi']");
+    };
+    let _saleName = () => {
+      return _form().find("[id$='_tenThuongMai']");
+    };
+    let _quality = () => {
+      return _form().find("[id$='_tieuChuanApDung']");
+    };
+    let _type = () => {
+      return _form().find("[id$='_chungLoaiTB']");
+    };
+    let _pack = () => {
+      return _form().find("[id$='_quyCachDongGoi']");
+    };
+    let _code = () => {
+      return _form().find("[id$='_maTB']");
+    };
+    let _addFactoryBtn = () => {
+      return _form().find('input[type=button][value="Thêm cơ sở sản xuất"]');
+    };
+    let _factoryName = (index) => {
+      return _form().find(`[id$='_dsCoSoSx.ten_${index}']`);
+    };
+    let _factoryAddress = (index) => {
+      return _form().find(`[id$='_dsCoSoSx.diachi_${index}']`);
+    };
+    let _factoryCountry = (index) => {
+      return _form().find(`[id$='_dsCoSoSx.nuocsx_${index}']`);
+    };
+    let _fileTaiLieuKyThuat = () => {
+      return _form().find("input[id$='_fileTaiLieuKyThuat']:first");
+    };
+    let _fileTaiLieuHuongDan = () => {
+      return _form().find("input[id$='_fileTaiLieuHuongDan']:first");
+    };
+    let _fileTaiLieuHuongDanVn = () => {
+      return _form().find("input[id$='_fileTaiLieuHuongDanVn']:first");
+    };
+    let _fileMauNhan = () => {
+      return _form().find("input[id$='_fileMauNhan']:first");
+    };
+    let _saveButton = () => {
+      return _form().find("#saveButton");
+    };
+    let _isLoaded = () => {
+      return !_form().find(".loadingmask-message:visible").length;
+    };
+    let _isDone = () => {
+      return !$("#addChungLoaiMaPopup").hasClass("modal-focused");
+    };
+
+    async function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    _factoryName(0).val(item.factoryName);
-    _factoryAddress(0).val(item.factoryAddress);
-    _factoryCountry(0).val(listCountries[item.factoryCountry]);
-  }
+    async function fillData(item) {
+      const groupUpload = $(`.group-upload[target=${item.filePatch}]`);
 
-  const startCode = async (f) => {
-    // _addMoreBtn.click();
-    // await waitUntil(_isLoaded);
-    // fillData(dataSource[0]);
-    // await waitUntil(_isDone);
-    // return true;
+      for (const key of [
+        "fileTaiLieuKyThuat",
+        "fileTaiLieuHuongDan",
+        "fileTaiLieuHuongDanVn",
+        "fileMauNhan",
+      ]) {
+        let file;
+        const dataTransfer = new DataTransfer();
 
-    for (const item of dataSource) {
-      _addMoreBtn.click();
+        switch (key) {
+          case "fileTaiLieuKyThuat":
+            file = groupUpload.find('input[name="fileTaiLieuKyThuat"]');
+            if (!file[0].files.length) break;
+            dataTransfer.items.add(file[0].files?.[0]);
+            _fileTaiLieuKyThuat()[0].files = dataTransfer.files;
+            _fileTaiLieuKyThuat()
+              .parent()
+              .next(".oep-label-uploadfile")
+              .text(file[0].files?.[0]?.name);
+            break;
 
-      await sleep(1000);
+          case "fileTaiLieuHuongDan":
+            file = groupUpload.find('input[name="fileTaiLieuHuongDan"]');
+            if (!file[0].files.length) break;
+            dataTransfer.items.add(file[0].files?.[0]);
+            _fileTaiLieuHuongDan()[0].files = dataTransfer.files;
+            _fileTaiLieuHuongDan()
+              .parent()
+              .next(".oep-label-uploadfile")
+              .text(file[0].files?.[0]?.name);
+            break;
 
-      while (!_isLoaded()) {
-        await sleep(1000);
+          case "fileTaiLieuHuongDanVn":
+            file = groupUpload.find('input[name="fileTaiLieuHuongDanVn"]');
+            if (!file[0].files.length) break;
+            dataTransfer.items.add(file[0].files?.[0]);
+            _fileTaiLieuHuongDanVn()[0].files = dataTransfer.files;
+            _fileTaiLieuHuongDanVn()
+              .parent()
+              .next(".oep-label-uploadfile")
+              .text(file[0].files?.[0]?.name);
+            break;
+
+          case "fileMauNhan":
+            file = groupUpload.find('input[name="fileMauNhan"]');
+            if (!file[0].files.length) break;
+            dataTransfer.items.add(file[0].files?.[0]);
+            _fileMauNhan()[0].files = dataTransfer.files;
+            _fileMauNhan()
+              .parent()
+              .next(".oep-label-uploadfile")
+              .text(file[0].files?.[0]?.name);
+            break;
+        }
       }
 
-      fillData(item);
+      _deviceName().val(item.deviceName);
+      _saleName().val(item.saleName);
+      _quality().val(item.quality);
+      _type().val(item.type);
+      _pack().val(item.pack);
+      _code().val(item.code);
+      _addFactoryBtn().click();
 
-      // let files = [
-      //   _fileTaiLieuKyThuat().first(),
-      //   _fileTaiLieuHuongDan().first(),
-      //   _fileTaiLieuHuongDanVn().first(),
-      //   _fileMauNhan().first(),
-      // ];
-
-      console.log("3s");
-
-      await sleep(3000);
-      let a = _fileTaiLieuKyThuat().get(0);
-      a.click();
-
-      console.log(a);
-
-      // while (_fileTaiLieuKyThuat().files.length == 0) {
-      //   await sleep(1000);
-      // }
-      await sleep(1000);
-
-      while (!_isDone()) {
-        await sleep(1000);
+      if (!listCountries.length) {
+        listCountries = _form()
+          .find(`[id$='_dsCoSoSx.nuocsx_0'] option`)
+          .toArray()
+          .reduce((acc, el) => {
+            acc[$(el).text().trim()] = $(el).val();
+            return acc;
+          }, {});
       }
-      await sleep(1000);
+
+      _factoryName(0).val(item.factoryName);
+      _factoryAddress(0).val(item.factoryAddress);
+      _factoryCountry(0).val(listCountries[item.factoryCountry]);
     }
-  };
 
-  startCode();
+    const startCode = async (f) => {
+      for (const item of dataSource) {
+        _addMoreBtn.click();
+
+        await sleep(1000);
+        while (!_isLoaded()) {
+          await sleep(1000);
+        }
+
+        fillData(item);
+        await sleep(700);
+        _saveButton().click();
+
+        while (!_isDone()) {
+          await sleep(1000);
+        }
+        await sleep(1000);
+      }
+    };
+
+    startCode();
+  }
 }
